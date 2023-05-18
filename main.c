@@ -6,7 +6,7 @@ int main(){
     avl *arv;
     int opt = 0, ret, valor;
     char nomeArquivo[31];
-    arv = criaArvore();
+    arv = criaArvore()
 
     do{
         printf("Digite a opção que desejar:\n");
