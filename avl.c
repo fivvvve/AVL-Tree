@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "arvorebinaria.h"
+#include "avl.h"
 
 
 struct no {
@@ -73,7 +73,7 @@ int insereNo(avl *arv, int valor){
     if(valor >= ant->chave) ant->Fdir = atual;
     else ant->Fesq = atual;
 
-    atualizaFB_Insercao(arv, atual);
+    atualizaFB_insercao(arv, atual);
 
     return 1;
 }
@@ -99,7 +99,7 @@ int removeNo(avl *arv, int valor){
     if(atual->Fdir == NULL && atual->Fesq == NULL){
         if(atual->chave >= atual->pai->chave) atual->pai->Fdir = NULL;
         else atual->pai->Fesq = NULL;
-        atualizaFB_Remocao(arv, atual->pai, atual->chave);
+        atualizaFB_remocao(arv, atual->pai, atual->chave);
         free(atual);
         return 1;
     }
@@ -114,7 +114,7 @@ int removeNo(avl *arv, int valor){
 
         filho->pai = atual->pai;
 
-        atualizaFB_Remocao(arv, atual->pai, atual->chave);
+        atualizaFB_remocao(arv, atual->pai, atual->chave);
 
         free(atual);
 
@@ -137,7 +137,7 @@ int removeNo(avl *arv, int valor){
 
     atual->chave = filho->chave;
 
-    atualizaFB_Remocao(arv, filho->pai, filho->chave);
+    atualizaFB_remocao(arv, filho->pai, filho->chave);
 
     free(filho);
     return 1;
@@ -175,25 +175,45 @@ int getNumElementos(avl *arv){
     return arv->numElementos;
 }
 
-//Função que lê um arquivo com números inteiros e carrega na árvore
-void processaCarga(avl *arv, char *nomeArquivo){
+//Função que lê um arquivo com números inteiros e um tipo
+//Se o tipo for 1, a função deve chamar insereNo
+//Se o tipo for 2, a função deve chamar removeNo
+//Retorna -2 se o arquivo não puder ter sido lido
+//Se o tipo for 1, insere os elementos na árvore e retorna os valores obtidos com o processamento da inserção
+//  Retorna 1 se a inserção foi realizada com sucesso
+//  Retorna 0 se não foi possível realizar a inserção
+//Se o tipo for 2, remove os elementos da árvore e retorna os valores obtidos com o processamento da remoção
+//  Retorna 1 se o elemento foi removido
+//  Retorna 0 se a árvore estiver vazia
+//Os valores retornados são tratados na main
+int processaCarga(avl *arv, char *nomeArquivo, int tipo){
 
     FILE *arq = fopen(nomeArquivo, "r");
+
+    if(arq == NULL) return -2;
 
     int valor;
     int ret;
 
     while(!feof(arq)){
-        ret = fscanf(arq, "%d\n", &valor);
-        insereNo(arv, valor);
+        fscanf(arq, "%d\n", &valor);
+        if(tipo == 1){
+            ret = insereNo(arv, valor);
+            if(ret == 0) return 0;
+        } else {
+            ret = removeNo(arv, valor);
+            if(ret == 0) return 0;
+        }
     }
+
+    return 1;
 
 }
 
 //****************Funções de balancemento - inserção******************//
 //atualiza o valor de balancemento dos nós após a inserção de um nó
 //condições de parada: após o ajuste do FB => chegar no nó raiz ou o nó ficar com fb 0, 2 ou -2
-void atualizaFB_Insercao(avl *arv, no *novoNo){
+void atualizaFB_insercao(avl *arv, no *novoNo){
     
     no *aux = novoNo;
 
@@ -207,83 +227,83 @@ void atualizaFB_Insercao(avl *arv, no *novoNo){
     }while(aux != arv->sentinela->Fdir && (aux->fb == 1 || aux->fb == -1));
 
     if(aux->fb == -2 || aux->fb == 2){
-        balancemento(arv, aux);
+        balanceamento(arv, aux);
     }
 
 }
 
 //verifica a estratégia de balancemento do nó e ajusta o fator de balanceamento
-void balancemento(avl *arv, no *noDesbalanceado){
+void balanceamento(avl *arv, no *noDesbal){
 
     no *filho;
-    if(noDesbalanceado->fb == -2){
-        filho = noDesbalanceado->Fesq;
+    if(noDesbal->fb == -2){
+        filho = noDesbal->Fesq;
         if(filho->fb == 1){
             //Rotação dupla
             int fbNeto = filho->Fdir->fb;
             rotacaoEsq(filho);
-            rotacaoDir(noDesbalanceado);
+            rotacaoDir(noDesbal);
             //ajustar fb
             if(fbNeto == 0){
-                noDesbalanceado->fb = 0;
+                noDesbal->fb = 0;
                 filho->fb = 0;
             } else if(fbNeto == -1) {
-                noDesbalanceado->fb = 1;
+                noDesbal->fb = 1;
                 filho->fb = 0;
-                noDesbalanceado->pai->fb = 0;
+                noDesbal->pai->fb = 0;
             } else {
-                noDesbalanceado->fb = 0;
+                noDesbal->fb = 0;
                 filho->fb = -1;
-                noDesbalanceado->pai->fb = 0;
+                noDesbal->pai->fb = 0;
             }
         }
         else{
             //rotação simples
             int fbFilho = filho->fb;
-            rotacaoDir(noDesbalanceado);
+            rotacaoDir(noDesbal);
             filho->fb = 0;
-            noDesbalanceado->fb = 0;
+            noDesbal->fb = 0;
             if(fbFilho == 0){
                 //só acontece na remoção
                 //Ajustar o fb
                 filho->fb = 1;
-                noDesbalanceado->fb = -1;
+                noDesbal->fb = -1;
             }
         }
     }
 
-    if(noDesbalanceado->fb == 2){
-        filho = noDesbalanceado->Fdir;
+    if(noDesbal->fb == 2){
+        filho = noDesbal->Fdir;
         if(filho->fb == -1){
             //Rotação dupla
             int fbNeto = filho->Fesq->fb;
             rotacaoDir(filho);
-            rotacaoEsq(noDesbalanceado);
+            rotacaoEsq(noDesbal);
             //ajustar fb
             if(fbNeto == 0){
-                noDesbalanceado->fb = 0;
+                noDesbal->fb = 0;
                 filho->fb = 0;
             } else if(fbNeto == -1) {
-                noDesbalanceado->fb = 0;
+                noDesbal->fb = 0;
                 filho->fb = 1;
-                noDesbalanceado->pai->fb = 0;
+                noDesbal->pai->fb = 0;
             } else {
-                noDesbalanceado->fb = -1;
+                noDesbal->fb = -1;
                 filho->fb = 0;
-                noDesbalanceado->pai->fb = 0;
+                noDesbal->pai->fb = 0;
             }
         }
         else{
             //rotação simples
             int fbFilho = filho->fb;
-            rotacaoEsq(noDesbalanceado);
+            rotacaoEsq(noDesbal);
             filho->fb = 0;
-            noDesbalanceado->fb = 0;
+            noDesbal->fb = 0;
             if(fbFilho == 0){
                 //só acontece na remoção
                 //Ajustar o fb
                 filho->fb = -1;
-                noDesbalanceado->fb = 1;
+                noDesbal->fb = 1;
             }
         }
     }
@@ -292,7 +312,7 @@ void balancemento(avl *arv, no *noDesbalanceado){
 //****************Funções de balancemento - remocao******************//
 //atualiza o valor de balancemento dos nós após a inserção de um nó
 //condições de parada: após o ajuste do FB => chegar no nó raiz ou o nó ficar com fb 1, -1, 2 ou -2
-void atualizaFB_Remocao(avl *arv, no *paidoNo, int chave){
+void atualizaFB_remocao(avl *arv, no *paidoNo, int chave){
 
     if(paidoNo == arv->sentinela) return;
 
@@ -314,51 +334,51 @@ void atualizaFB_Remocao(avl *arv, no *paidoNo, int chave){
 
 
     if(aux->fb == 2 || aux->fb == -2){
-        balancemento(arv, aux);
+        balanceamento(arv, aux);
         if(aux->pai->fb == 0 && aux->pai->pai != arv->sentinela){
-            atualizaFB_Remocao(arv, aux->pai->pai, aux->pai->chave);
+            atualizaFB_remocao(arv, aux->pai->pai, aux->pai->chave);
         }
     }
 
 }
 
 //rotação à esquerda no nó desbalanceado
-void rotacaoEsq(no *noDesbalanceado){
+void rotacaoEsq(no *noDesbal){
 
-    no *pai_de_todos = noDesbalanceado->pai;
+    no *pai_de_todos = noDesbal->pai;
 
-    noDesbalanceado->pai = noDesbalanceado->Fdir;
-    noDesbalanceado->Fdir = noDesbalanceado->pai->Fesq;
-    if(noDesbalanceado->pai->Fesq != NULL){
-        noDesbalanceado->pai->Fesq->pai = noDesbalanceado;
+    noDesbal->pai = noDesbal->Fdir;
+    noDesbal->Fdir = noDesbal->pai->Fesq;
+    if(noDesbal->pai->Fesq != NULL){
+        noDesbal->pai->Fesq->pai = noDesbal;
     }
-    noDesbalanceado->pai->Fesq = noDesbalanceado;
-    noDesbalanceado->pai->pai = pai_de_todos;
+    noDesbal->pai->Fesq = noDesbal;
+    noDesbal->pai->pai = pai_de_todos;
 
-    if(noDesbalanceado->chave >= pai_de_todos->chave){
-        pai_de_todos->Fdir = noDesbalanceado->pai;
+    if(noDesbal->chave >= pai_de_todos->chave){
+        pai_de_todos->Fdir = noDesbal->pai;
     } else {
-        pai_de_todos->Fesq = noDesbalanceado->pai;
+        pai_de_todos->Fesq = noDesbal->pai;
     }
 
 }
 
 //rotação à direita no nó desbalanceado
-void rotacaoDir(no *noDesbalanceado){
+void rotacaoDir(no *noDesbal){
 
-    no *pai_de_todos = noDesbalanceado->pai;
+    no *pai_de_todos = noDesbal->pai;
 
-    noDesbalanceado->pai = noDesbalanceado->Fesq;
-    noDesbalanceado->Fesq = noDesbalanceado->pai->Fdir;
-    if(noDesbalanceado->Fesq != NULL){
-        noDesbalanceado->Fesq->pai  = noDesbalanceado;
+    noDesbal->pai = noDesbal->Fesq;
+    noDesbal->Fesq = noDesbal->pai->Fdir;
+    if(noDesbal->Fesq != NULL){
+        noDesbal->Fesq->pai  = noDesbal;
     }
-    noDesbalanceado->pai->Fdir = noDesbalanceado;
-    noDesbalanceado->pai->pai = pai_de_todos;
+    noDesbal->pai->Fdir = noDesbal;
+    noDesbal->pai->pai = pai_de_todos;
 
-    if(noDesbalanceado->chave >= pai_de_todos->chave){
-        pai_de_todos->Fdir = noDesbalanceado->pai;
+    if(noDesbal->chave >= pai_de_todos->chave){
+        pai_de_todos->Fdir = noDesbal->pai;
     } else {
-        pai_de_todos->Fesq = noDesbalanceado->pai;
+        pai_de_todos->Fesq = noDesbal->pai;
     }
 }
